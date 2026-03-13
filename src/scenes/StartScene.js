@@ -124,7 +124,8 @@ export default class StartScene extends Phaser.Scene {
         
         this.leaderboardTexts.push(titleText, loadingText, escText);
 
-        let url = `https://www.dreamlo.com/lb/${this.DREAMLO_PUBLIC_KEY}/json?t=${new Date().getTime()}`;
+        let dreamloUrl = `http://dreamlo.com/lb/${this.DREAMLO_PUBLIC_KEY}/pipe?t=${new Date().getTime()}`;
+        let url = `https://corsproxy.io/?${encodeURIComponent(dreamloUrl)}`;
 
         fetch(url, { cache: 'no-store' })
             .then(response => {
@@ -133,34 +134,21 @@ export default class StartScene extends Phaser.Scene {
             })
             .then(text => {
                 loadingText.destroy(); 
-                
-                if (!text || text.trim() === "") {
+
+                if (!text || text.trim() === "" || text.includes("ERROR:")) {
                     this.showEmptyLeaderboardMessage(cx);
                     return;
                 }
 
-                let data;
-                try {
-                    data = JSON.parse(text);
-                } catch (e) {
-                    this.showEmptyLeaderboardMessage(cx);
-                    return;
-                }
-
-                if (!data || !data.dreamlo || !data.dreamlo.leaderboard || !data.dreamlo.leaderboard.entry) {
-                    this.showEmptyLeaderboardMessage(cx);
-                    return;
-                }
-
-                let entries = data.dreamlo.leaderboard.entry;
-                if (!Array.isArray(entries)) { entries = [entries]; }
-
+                let lines = text.trim().split('\n'); 
                 let startY = 200;
-                let max = Math.min(entries.length, 10);
+                let max = Math.min(lines.length, 10);
                 
                 for (let i = 0; i < max; i++) {
-                    let player = entries[i].name;
-                    let score = entries[i].score;
+                    let parts = lines[i].split('|'); 
+                    let player = parts[0];
+                    let score = parts[1];
+                    
                     let entryText = this.add.text(cx, startY + (i * 40), `${i + 1}. ${player} ........... ${score} PTS`, { 
                         fontSize: '28px', fill: i === 0 ? '#00ff00' : '#ffffff', fontStyle: 'bold', stroke: '#000000', strokeThickness: 3 
                     }).setOrigin(0.5);
@@ -172,7 +160,7 @@ export default class StartScene extends Phaser.Scene {
                 if (loadingText && loadingText.active) {
                     loadingText.setText("Server connection error!");
                 }
-                console.error("Dreamlo Error:", error);
+                console.error("Dreamlo/Proxy Error:", error);
             });
     }
 
