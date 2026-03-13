@@ -239,7 +239,7 @@ export default class GameScene extends Phaser.Scene {
 
     checkGameOver() {
         if (!this.isCoop && (this.player1.isZombie || !this.player1.active)) {
-            this.scene.start('GameOverScene', { message: 'YOU ARE DEAD! Score: ' + this.score });
+            this.scene.start('GameOverScene', { message: 'YOU ARE DEAD! Score: ' + this.score, score: this.score });
             return;
         }
 
@@ -248,9 +248,9 @@ export default class GameScene extends Phaser.Scene {
             let p2Dead = !this.player2.active;
             
             if (p1Dead || p2Dead) {
-                this.scene.start('GameOverScene', { message: 'HUMAN WINS! Score: ' + this.score });
+                this.scene.start('GameOverScene', { message: 'HUMAN WINS! Score: ' + this.score, score: this.score });
             } else if (this.player1.isZombie && this.player2.isZombie) {
-                this.scene.start('GameOverScene', { message: 'ZOMBIE WINS! Score: ' + this.score });
+                this.scene.start('GameOverScene', { message: 'ZOMBIE WINS! Score: ' + this.score, score: this.score });
             }
         }
     }

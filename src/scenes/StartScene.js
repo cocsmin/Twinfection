@@ -5,7 +5,7 @@ export default class StartScene extends Phaser.Scene {
         let cx = this.scale.width / 2;
         let cy = this.scale.height / 2;
         
-        let loadingText = this.add.text(cx, cy, 'LOADING ASSETS...', { fontSize: '32px', fill: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
+        this.add.text(cx, cy, 'LOADING ASSETS...', { fontSize: '32px', fill: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
 
         this.load.image('bg', 'assets/bg.png');
         this.load.image('bullet', 'assets/bullet.png');
@@ -43,15 +43,15 @@ export default class StartScene extends Phaser.Scene {
         this.load.audio('boss_spawn', 'assets/audio/boss_spawn.mp3');
         this.load.audio('bite', 'assets/audio/bite.mp3');
         this.load.audio('showdown_start', 'assets/audio/showdown_start.mp3');
-
-        // Cand s-au terminat de descarcat toate:
-        this.load.on('complete', () => {
-            loadingText.destroy();
-            this.createStartScreen(cx, cy);
-        });
     }
 
-    createStartScreen(cx, cy) {
+    create() {
+        this.children.removeAll();
+        this.sound.stopAll();
+
+        let cx = this.scale.width / 2;
+        let cy = this.scale.height / 2;
+
         this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0x222222).setOrigin(0,0);
         
         this.startBtnText = this.add.text(cx, cy, '[ CLICK TO START ]', { 
@@ -72,22 +72,120 @@ export default class StartScene extends Phaser.Scene {
     }
 
     drawMainMenu(cx) {
-        this.add.text(cx, 150, 'TWINFECTION', { fontSize: '72px', fill: '#087b08', fontStyle: 'bold', stroke: '#000000', strokeThickness: 8 }).setOrigin(0.5);
-        this.add.text(cx, 300, '> Press 1 for SINGLEPLAYER <', { fontSize: '28px', fill: '#ffffff' }).setOrigin(0.5);
-        this.add.text(cx, 380, '> Press 2 for CO-OP (Local) <', { fontSize: '28px', fill: '#ffffff' }).setOrigin(0.5);
+        this.DREAMLO_PUBLIC_KEY = "69b3ff7d8f40bb1b14aad333";
 
-        let tutorialY = 550;
-        this.add.text(this.scale.width / 4, tutorialY, 'PLAYER 1 (Red)\nMovement: W, A, S, D\nAttack: F', { fontSize: '20px', fill: '#ff5555', align: 'center', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5);
-        this.add.text(3 * this.scale.width / 4, tutorialY, 'PLAYER 2 (Blue)\nMovement: Arrows\nAttack: SPACE', { fontSize: '20px', fill: '#5555ff', align: 'center', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5);
+        this.menuUI = this.add.container(0, 0);
 
-        this.input.keyboard.once('keydown-ONE', () => {
-            this.sound.play('ui_click');
-            this.scene.start('GameScene', { isCoop: false });
+        let title = this.add.text(cx, 150, 'TWINFECTION', { fontSize: '72px', fill: '#00ff00', fontStyle: 'bold', stroke: '#000000', strokeThickness: 8 }).setOrigin(0.5);
+        let btn1 = this.add.text(cx, 300, '> Press 1 for SINGLEPLAYER <', { fontSize: '28px', fill: '#ffffff' }).setOrigin(0.5);
+        let btn2 = this.add.text(cx, 360, '> Press 2 for CO-OP (Local) <', { fontSize: '28px', fill: '#ffffff' }).setOrigin(0.5);
+        
+        let btnL = this.add.text(cx, 440, '> Press [ L ] to see the LEADERBOARD <', { fontSize: '24px', fill: '#ffff00' }).setOrigin(0.5);
+
+        let tutorialY = 600;
+        let tut1 = this.add.text(this.scale.width / 4, tutorialY, 'PLAYER 1 (Red)\nMovement: W, A, S, D\nShoot/Bite: F', { fontSize: '20px', fill: '#ff5555', align: 'center', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5);
+        let tut2 = this.add.text(3 * this.scale.width / 4, tutorialY, 'PLAYER 2 (Blue)\nMovement: Arrows\nShoot/Bite: SPACE', { fontSize: '20px', fill: '#5555ff', align: 'center', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5);
+
+        this.menuUI.add([title, btn1, btn2, btnL, tut1, tut2]);
+
+        this.input.keyboard.on('keydown-ONE', () => {
+            if(!this.showingLeaderboard) { this.sound.play('ui_click'); this.scene.start('GameScene', { isCoop: false }); }
         });
 
-        this.input.keyboard.once('keydown-TWO', () => {
-            this.sound.play('ui_click');
-            this.scene.start('GameScene', { isCoop: true });
+        this.input.keyboard.on('keydown-TWO', () => {
+            if(!this.showingLeaderboard) { this.sound.play('ui_click'); this.scene.start('GameScene', { isCoop: true }); }
         });
+
+        this.showingLeaderboard = false;
+        this.leaderboardTexts = []; 
+        
+        this.input.keyboard.on('keydown-L', () => {
+            if (!this.showingLeaderboard) {
+                this.sound.play('ui_click');
+                this.showLeaderboard(cx);
+            }
+        });
+
+        this.input.keyboard.on('keydown-ESC', () => {
+            if (this.showingLeaderboard) {
+                this.sound.play('ui_click');
+                this.hideLeaderboard();
+            }
+        });
+    }
+
+    showLeaderboard(cx) {
+        this.showingLeaderboard = true;
+        this.menuUI.setVisible(false); 
+
+        let titleText = this.add.text(cx, 100, 'TOP 10 SURVIVORS', { fontSize: '48px', fill: '#ffff00', fontStyle: 'bold', stroke: '#000000', strokeThickness: 6 }).setOrigin(0.5);
+        let loadingText = this.add.text(cx, 300, 'Loading leaderboard...', { fontSize: '24px', fill: '#aaaaaa' }).setOrigin(0.5);
+        let escText = this.add.text(cx, this.scale.height - 50, '> Press [ ESC ] to return to MENU <', { fontSize: '20px', fill: '#ffffff' }).setOrigin(0.5);
+        
+        this.leaderboardTexts.push(titleText, loadingText, escText);
+
+        let url = `http://www.dreamlo.com/lb/${this.DREAMLO_PUBLIC_KEY}/json?t=${new Date().getTime()}`;
+
+        fetch(url, { cache: 'no-store' })
+            .then(response => {
+                if (!response.ok) throw new Error("Network response was not ok");
+                return response.text(); 
+            })
+            .then(text => {
+                loadingText.destroy(); 
+                
+                if (!text || text.trim() === "") {
+                    this.showEmptyLeaderboardMessage(cx);
+                    return;
+                }
+
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    this.showEmptyLeaderboardMessage(cx);
+                    return;
+                }
+
+                if (!data || !data.dreamlo || !data.dreamlo.leaderboard || !data.dreamlo.leaderboard.entry) {
+                    this.showEmptyLeaderboardMessage(cx);
+                    return;
+                }
+
+                let entries = data.dreamlo.leaderboard.entry;
+                if (!Array.isArray(entries)) { entries = [entries]; }
+
+                let startY = 200;
+                let max = Math.min(entries.length, 10);
+                
+                for (let i = 0; i < max; i++) {
+                    let player = entries[i].name;
+                    let score = entries[i].score;
+                    let entryText = this.add.text(cx, startY + (i * 40), `${i + 1}. ${player} ........... ${score} PTS`, { 
+                        fontSize: '28px', fill: i === 0 ? '#00ff00' : '#ffffff', fontStyle: 'bold', stroke: '#000000', strokeThickness: 3 
+                    }).setOrigin(0.5);
+                    
+                    this.leaderboardTexts.push(entryText);
+                }
+            })
+            .catch(error => {
+                if (loadingText && loadingText.active) {
+                    loadingText.setText("Server connection error!");
+                }
+                console.error("Dreamlo Error:", error);
+            });
+    }
+
+    showEmptyLeaderboardMessage(cx) {
+        let msg = this.add.text(cx, 300, 'Be the first one in the leaderboard!', { fontSize: '28px', fill: '#ffffff' }).setOrigin(0.5);
+        this.leaderboardTexts.push(msg);
+    }
+
+    hideLeaderboard() {
+        this.showingLeaderboard = false;
+        this.menuUI.setVisible(true); 
+        
+        this.leaderboardTexts.forEach(textObj => textObj.destroy());
+        this.leaderboardTexts = [];
     }
 }
