@@ -61,7 +61,7 @@ export default class GameOverScene extends Phaser.Scene {
     }
 
     submitScore(name, score) {
-        let url = `http://www.dreamlo.com/lb/${this.DREAMLO_PRIVATE_KEY}/add/${name}/${score}?t=${new Date().getTime()}`;
+        let url = `https://www.dreamlo.com/lb/${this.DREAMLO_PRIVATE_KEY}/add/${name}/${score}?t=${new Date().getTime()}`;
         
         fetch(url, { cache: 'no-store' })
             .then(response => console.log("Score saved perfectly!"))

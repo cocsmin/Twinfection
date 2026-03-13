@@ -124,7 +124,7 @@ export default class StartScene extends Phaser.Scene {
         
         this.leaderboardTexts.push(titleText, loadingText, escText);
 
-        let url = `http://www.dreamlo.com/lb/${this.DREAMLO_PUBLIC_KEY}/json?t=${new Date().getTime()}`;
+        let url = `https://www.dreamlo.com/lb/${this.DREAMLO_PUBLIC_KEY}/json?t=${new Date().getTime()}`;
 
         fetch(url, { cache: 'no-store' })
             .then(response => {
