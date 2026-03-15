@@ -125,8 +125,8 @@ export default class StartScene extends Phaser.Scene {
         this.leaderboardTexts.push(titleText, loadingText, escText);
 
         let dreamloUrl = `http://dreamlo.com/lb/${this.DREAMLO_PUBLIC_KEY}/pipe?t=${new Date().getTime()}`;
-        let url = `https://corsproxy.io/?${encodeURIComponent(dreamloUrl)}`;
-
+        let url = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(dreamloUrl)}`;
+        
         fetch(url, { cache: 'no-store' })
             .then(response => {
                 if (!response.ok) throw new Error("Network response was not ok");

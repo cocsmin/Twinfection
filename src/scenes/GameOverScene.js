@@ -62,10 +62,10 @@ export default class GameOverScene extends Phaser.Scene {
 
     submitScore(name, score) {
         let dreamloUrl = `http://dreamlo.com/lb/${this.DREAMLO_PRIVATE_KEY}/add/${name}/${score}?t=${new Date().getTime()}`;
-        let url = `https://corsproxy.io/?${encodeURIComponent(dreamloUrl)}`;
+        let url = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(dreamloUrl)}`;
         
         fetch(url, { cache: 'no-store' })
-            .then(response => console.log("Score saved successfully via corsproxy.io!"))
+            .then(response => console.log("Score saved successfully via CodeTabs!"))
             .catch(error => console.error("Score save error:", error));
     }
 }
