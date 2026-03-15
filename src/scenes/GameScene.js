@@ -1,7 +1,7 @@
 const WEAPONS = {
     PISTOL: { name: 'Pistol', damage: 10, fireRate: 300, speedMod: 1.0, texture: 'gun' },
-    MAGNUM: { name: 'Magnum', damage: 35, fireRate: 600, speedMod: 1.0, texture: 'silencer' },
-    MACHINE: { name: 'Machinegun', damage: 6, fireRate: 100, speedMod: 0.7, texture: 'machine' }
+    MAGNUM: { name: 'Magnum', damage: 40, fireRate: 600, speedMod: 1.0, texture: 'silencer' },
+    MACHINE: { name: 'Machinegun', damage: 7, fireRate: 100, speedMod: 0.85, texture: 'machine' }
 };
 
 export default class GameScene extends Phaser.Scene {
@@ -11,25 +11,19 @@ export default class GameScene extends Phaser.Scene {
         this.isCoop = data.isCoop;
         this.registry.set('isCoop', this.isCoop);
         
-        // --- VARIABILE CORE ---
         this.score = 0; 
         this.wave = 1;
         this.isPaused = false; 
         
-        // --- VARIABILE EXTRA ---
         this.bossTimer = 30; 
         this.baseSpawnRate = 4000; 
         this.isShowdown = false; 
+
+        this.batsDropped = 0; 
     }
 
-    preload() {
-        // Totul e incarcat deja in StartScene, deci asta ramane gol
-    }
+    preload() {}
 
-    // =====================================================================
-    // 1) CORE REQUIREMENTS 
-    // =====================================================================
-    
     create() {
         this.sound.stopAll();
         this.bgMusic = this.sound.add('music_game', { loop: true, volume: 0.3 });
@@ -44,16 +38,20 @@ export default class GameScene extends Phaser.Scene {
         this.player1 = this.physics.add.sprite(this.p1Spawn.x, this.p1Spawn.y, 'player1_gun').setScale(0.5);
         this.initPlayer(this.player1, 1);
         this.bulletsP1 = this.physics.add.group();
+        
         this.keysP1 = this.input.keyboard.addKeys('W,A,S,D');
         this.shootKeyP1 = this.input.keyboard.addKey('F');
+        this.meleeKeyP1 = this.input.keyboard.addKey('E'); 
 
         if (this.isCoop) {
             this.player2 = this.physics.add.sprite(this.p2Spawn.x, this.p2Spawn.y, 'player2_gun').setScale(0.5); 
             this.player2.setTint(0xaaaaff); 
             this.initPlayer(this.player2, 2);
             this.bulletsP2 = this.physics.add.group();
+            
             this.keysP2 = this.input.keyboard.createCursorKeys();
             this.shootKeyP2 = this.input.keyboard.addKey('SPACE');
+            this.meleeKeyP2 = this.input.keyboard.addKey('ENTER'); 
 
             this.physics.add.collider(this.player1, this.player2);
             this.physics.add.overlap(this.player1, this.bulletsP2, this.hitPlayerWithBullet, null, this);
@@ -77,8 +75,8 @@ export default class GameScene extends Phaser.Scene {
     update(time) {
         if (this.isPaused) return; 
 
-        this.handlePlayerMovement(this.player1, this.keysP1, 'W', 'S', 'A', 'D', this.shootKeyP1, this.bulletsP1, time);
-        if (this.isCoop) this.handlePlayerMovement(this.player2, this.keysP2, 'up', 'down', 'left', 'right', this.shootKeyP2, this.bulletsP2, time);
+        this.handlePlayerMovement(this.player1, this.keysP1, 'W', 'S', 'A', 'D', this.shootKeyP1, this.meleeKeyP1, this.bulletsP1, time);
+        if (this.isCoop) this.handlePlayerMovement(this.player2, this.keysP2, 'up', 'down', 'left', 'right', this.shootKeyP2, this.meleeKeyP2, this.bulletsP2, time);
 
         this.aiZombies.getChildren().forEach(zombie => {
             let target = this.getClosestLivingPlayer(zombie);
@@ -113,9 +111,13 @@ export default class GameScene extends Phaser.Scene {
         
         player.lastBite = 0;
         player.biteCooldown = 3000; 
+
+        player.hasBat = false;
+        player.lastBatSwing = 0;
+        player.batCooldown = 1500; 
     }
 
-    handlePlayerMovement(player, keys, up, down, left, right, shootKey, bulletGroup, time) {
+    handlePlayerMovement(player, keys, up, down, left, right, shootKey, meleeKey, bulletGroup, time) {
         if (!player.active) return;
 
         let vx = 0; let vy = 0;
@@ -151,6 +153,71 @@ export default class GameScene extends Phaser.Scene {
                 }
             }
         }
+
+        if (meleeKey.isDown && !player.isZombie && player.hasBat) {
+            if (time > player.lastBatSwing + player.batCooldown) {
+                this.executeBatSwing(player, time);
+            }
+        }
+    }
+
+    executeBatSwing(player, time) {
+        player.lastBatSwing = time;
+
+        this.tweens.add({
+            targets: player,
+            angle: player.angle + 45,
+            yoyo: true,
+            duration: 150
+        });
+
+        this.sound.play('swing', { volume: 0.8 }); 
+
+        this.aiZombies.getChildren().forEach(zombie => {
+            if (zombie.active) {
+                let dist = Phaser.Math.Distance.Between(player.x, player.y, zombie.x, zombie.y);
+                if (dist < 55) {
+                    this.cameras.main.shake(100, 0.01); 
+                    zombie.hp -= 80; 
+                    
+                    zombie.setTint(0xffffff);
+                    this.time.delayedCall(100, () => { 
+                        if (zombie.active) zombie.clearTint(); 
+                        if (zombie.isBoss) zombie.setTint(0xff0000); 
+                    });
+
+                    let angle = Phaser.Math.Angle.Between(player.x, player.y, zombie.x, zombie.y);
+                    zombie.x += Math.cos(angle) * 30;
+                    zombie.y += Math.sin(angle) * 30;
+
+                    this.showPopup(zombie.x, zombie.y - 30, 'SMASH!', '#ff8800');
+
+                    if (zombie.hp <= 0) {
+                        this.handleZombieDeath(zombie);
+                    }
+                }
+            }
+        });
+
+        if (this.isCoop) {
+            let target = player.id === 1 ? this.player2 : this.player1;
+            
+            if (target && target.active && target.isZombie) {
+                let dist = Phaser.Math.Distance.Between(player.x, player.y, target.x, target.y);
+                
+                if (dist < 55) {
+                    this.cameras.main.shake(150, 0.015); 
+                    
+                    let angle = Phaser.Math.Angle.Between(player.x, player.y, target.x, target.y);
+                    target.x += Math.cos(angle) * 40;
+                    target.y += Math.sin(angle) * 40;
+                    
+                    this.showPopup(target.x, target.y - 50, 'BONK!', '#ff8800');
+                    
+                    this.takeDamage(target, 40); 
+                }
+            }
+        }
     }
 
     shootBullet(player, bulletGroup) {
@@ -172,7 +239,6 @@ export default class GameScene extends Phaser.Scene {
     executeZombieBite(attacker, time) {
         attacker.lastBite = time; 
         this.tweens.add({ targets: attacker, scaleX: 0.8, scaleY: 0.8, yoyo: true, duration: 100 });
-
         this.sound.play('bite', { volume: 0.8 });
 
         let target = attacker.id === 1 ? this.player2 : this.player1;
@@ -256,7 +322,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     // =====================================================================
-    // 2) EXTRA FEATURES (Map Gen, UI, Loot, Showdown)
+    // 2) EXTRA FEATURES 
     // =====================================================================
 
     initExtraFeatures() {
@@ -268,43 +334,43 @@ export default class GameScene extends Phaser.Scene {
         this.scoreText = this.add.text(cx, 30, 'SCORE: 0', { fontSize: '24px', fill: '#ffff00', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5);
         this.waveText = this.add.text(cx, 65, 'WAVE: 1', { fontSize: '24px', fill: '#ff8800', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5);
         this.bossText = this.add.text(cx, 95, 'BOSS IN: 30s', { fontSize: '20px', fill: '#ff0000', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5);
+        
         this.uiNameP1 = this.add.text(120, 25, 'PLAYER 1', { fontSize: '16px', fill: '#ffffff', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5);
         if (this.isCoop) this.uiNameP2 = this.add.text(this.scale.width - 120, 25, 'PLAYER 2', { fontSize: '16px', fill: '#ffffff', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5);
+
+
         this.pauseText = this.add.text(cx, this.scale.height / 2, 'PAUSED', { fontSize: '64px', fill: '#ffffff', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5).setVisible(false).setDepth(100); 
 
         this.physics.add.collider(this.player1, this.obstacles);
         if (this.isCoop) this.physics.add.collider(this.player2, this.obstacles);
         
         this.physics.add.collider(this.aiZombies, this.obstacles);
-        
         this.physics.add.collider(this.bulletsP1, this.obstacles, (b) => b.destroy());
         if (this.isCoop) this.physics.add.collider(this.bulletsP2, this.obstacles, (b) => b.destroy());
 
         this.lootItems = this.physics.add.group(); 
         this.weaponDrops = this.physics.add.group(); 
         this.energyDrinks = this.physics.add.group(); 
+        this.batDrops = this.physics.add.group();
 
         this.physics.add.overlap(this.player1, this.lootItems, this.collectLoot, null, this);
         this.physics.add.overlap(this.player1, this.energyDrinks, this.collectEnergy, null, this);
         this.physics.add.overlap(this.player1, this.weaponDrops, this.collectWeapon, null, this);
+        this.physics.add.overlap(this.player1, this.batDrops, this.collectBat, null, this);
+        
         if (this.isCoop) {
             this.physics.add.overlap(this.player2, this.lootItems, this.collectLoot, null, this);
             this.physics.add.overlap(this.player2, this.energyDrinks, this.collectEnergy, null, this);
             this.physics.add.overlap(this.player2, this.weaponDrops, this.collectWeapon, null, this);
+            this.physics.add.overlap(this.player2, this.batDrops, this.collectBat, null, this); 
         }
 
         this.spawnTimer = this.time.addEvent({ delay: this.baseSpawnRate, callback: this.spawnZombie, callbackScope: this, loop: true });
         this.time.addEvent({ delay: 1000, callback: this.updateTimers, callbackScope: this, loop: true });
         
         this.time.addEvent({
-            delay: 3500,
-            callback: () => {
-                if(this.aiZombies.countActive() > 0 && !this.isPaused) {
-                    this.sound.play('zombie_idle', { volume: 0.15 });
-                }
-            },
-            callbackScope: this,
-            loop: true
+            delay: 3500, callback: () => { if(this.aiZombies.countActive() > 0 && !this.isPaused) this.sound.play('zombie_idle', { volume: 0.15 }); },
+            callbackScope: this, loop: true
         });
     }
 
@@ -312,11 +378,19 @@ export default class GameScene extends Phaser.Scene {
         this.hpGraphics.clear(); 
         if (this.player1.active) {
             this.drawHealthBar(20, 40, 200, 25, this.player1.hp, this.player1.maxHp, this.player1.isZombie ? 0x00ff00 : 0xff0000);
-            if (this.player1.isZombie) this.drawCooldownBar(20, 70, 200, 8, time, this.player1);
+            if (this.player1.isZombie) {
+                this.drawCooldownBar(20, 70, 200, 8, time, this.player1.lastBite, this.player1.biteCooldown);
+            } else if (this.player1.hasBat) {
+                this.drawCooldownBar(20, 70, 200, 8, time, this.player1.lastBatSwing, this.player1.batCooldown, 0x8B4513);
+            }
         }
         if (this.isCoop && this.player2.active) {
             this.drawHealthBar(this.scale.width - 220, 40, 200, 25, this.player2.hp, this.player2.maxHp, this.player2.isZombie ? 0x00ff00 : 0x0088ff);
-            if (this.player2.isZombie) this.drawCooldownBar(this.scale.width - 220, 70, 200, 8, time, this.player2);
+            if (this.player2.isZombie) {
+                this.drawCooldownBar(this.scale.width - 220, 70, 200, 8, time, this.player2.lastBite, this.player2.biteCooldown);
+            } else if (this.player2.hasBat) {
+                this.drawCooldownBar(this.scale.width - 220, 70, 200, 8, time, this.player2.lastBatSwing, this.player2.batCooldown, 0x8B4513);
+            }
         }
         this.aiZombies.getChildren().forEach(zombie => {
             let yOffset = zombie.isBoss ? 60 : 30; 
@@ -352,10 +426,10 @@ export default class GameScene extends Phaser.Scene {
         this.hpGraphics.fillStyle(color, 1).fillRect(x, y, w * p, h);
     }
 
-    drawCooldownBar(x, y, w, h, time, player) {
-        let p = Math.min((time - player.lastBite) / player.biteCooldown, 1);
+    drawCooldownBar(x, y, w, h, time, lastActionTime, cooldownDuration, colorCode = 0xffff00) {
+        let p = Math.min((time - lastActionTime) / cooldownDuration, 1);
         this.hpGraphics.fillStyle(0x000000, 1).fillRect(x - 2, y - 2, w + 4, h + 4);
-        this.hpGraphics.fillStyle(p >= 1 ? 0xffff00 : 0x555555, 1).fillRect(x, y, w * p, h);
+        this.hpGraphics.fillStyle(p >= 1 ? colorCode : 0x555555, 1).fillRect(x, y, w * p, h);
     }
 
     generateNaturalMap() {
@@ -425,9 +499,17 @@ export default class GameScene extends Phaser.Scene {
     }
 
     dropWeaponFromBoss(x, y) {
-        let w = this.physics.add.sprite(x, y, 'weapon_drop').setScale(0.8);
+        let w = this.physics.add.sprite(x - 20, y, 'weapon_drop').setScale(0.8);
         w.weaponData = Phaser.Math.Between(0, 1) === 0 ? WEAPONS.MAGNUM : WEAPONS.MACHINE; 
         this.weaponDrops.add(w);
+
+        let maxBats = this.isCoop ? 2 : 1;
+        if (this.batsDropped < maxBats) {
+            let batDrop = this.physics.add.sprite(x + 20, y, 'weapon_drop').setScale(0.8);
+            batDrop.setTint(0x8B4513); 
+            this.batDrops.add(batDrop);
+            this.batsDropped++;
+        }
     }
 
     dropLoot(x, y) {
@@ -439,23 +521,75 @@ export default class GameScene extends Phaser.Scene {
         }
     }
 
+    updatePlayerTexture(player) {
+        let prefix = player.id === 1 ? 'player1_' : 'player2_';
+        let suffix = player.hasBat ? '_bat' : '';
+        player.setTexture(prefix + player.currentWeapon.texture + suffix);
+        
+        if (player.id === 2) player.setTint(0xaaaaff);
+    }
+
     collectWeapon(player, drop) {
         if (player.isZombie) return; 
         player.currentWeapon = drop.weaponData;
-        player.setTexture((player.id === 1 ? 'player1_' : 'player2_') + player.currentWeapon.texture);
-        if (player.id === 2) player.setTint(0xaaaaff);
-        drop.destroy(); 
+        this.updatePlayerTexture(player);
         
+        drop.destroy(); 
         player.setTint(0xffff00);
         this.time.delayedCall(200, () => { if (player.id === 2) player.setTint(0xaaaaff); else player.clearTint(); });
         this.showPopup(player.x, player.y - 30, 'GOT ' + player.currentWeapon.name.toUpperCase() + '!', '#ffff00');
-        
         this.sound.play('reload', { volume: 0.7 });
+    }
+
+    collectBat(player, drop) {
+        if (player.isZombie || player.hasBat) return; 
+        
+        player.hasBat = true;
+        this.updatePlayerTexture(player);
+        
+        drop.destroy(); 
+        player.setTint(0x8B4513);
+        this.time.delayedCall(200, () => { if (player.id === 2) player.setTint(0xaaaaff); else player.clearTint(); });
+        this.showPopup(player.x, player.y - 30, 'BASEBALL BAT EQUIPPED!', '#ff8800');
+        this.sound.play('pickup', { volume: 0.7 });
+
+        this.showMeleeTutorial(player);
+    }
+
+    showMeleeTutorial(player) {
+        if (this.meleeTutorialText) {
+            this.meleeTutorialText.destroy();
+        }
+
+        let cx = this.scale.width / 2;
+        let tutStr = "";
+        
+        if (this.isCoop) {
+            tutStr = player.id === 1 ? "> P1: Press [ E ] to MELEE! <" : "> P2: Press [ ENTER ] to MELEE! <";
+        } else {
+            tutStr = "> Press [ E ] to MELEE! <";
+        }
+
+        this.meleeTutorialText = this.add.text(cx, this.scale.height - 40, tutStr, { 
+            fontSize: '24px', fill: '#ff8800', fontStyle: 'bold', stroke: '#000000', strokeThickness: 4 
+        }).setOrigin(0.5);
+
+        this.tweens.add({
+            targets: this.meleeTutorialText,
+            alpha: 0,
+            delay: 5000,
+            duration: 1500,
+            onComplete: () => {
+                if (this.meleeTutorialText) {
+                    this.meleeTutorialText.destroy();
+                    this.meleeTutorialText = null;
+                }
+            }
+        });
     }
 
     collectLoot(player, item) {
         if (player.isZombie) return; 
-        
         item.destroy(); 
         player.hp = Math.min(player.hp + 30, player.maxHp); 
         player.setTint(0x00ff00);
@@ -466,7 +600,6 @@ export default class GameScene extends Phaser.Scene {
 
     collectEnergy(player, item) {
         if (player.isZombie) return; 
-        
         item.destroy();
         player.hasSpeedBoost = true;
         player.setTint(0x00ffff);
@@ -491,18 +624,21 @@ export default class GameScene extends Phaser.Scene {
         });
 
         if (zombie.hp <= 0) {
-            this.dropLoot(zombie.x, zombie.y); 
-            if (zombie.isBoss) {
-                this.dropWeaponFromBoss(zombie.x, zombie.y); 
-                this.score += 100;
-            } else {
-                this.score += zombie.zombieType === 2 ? 20 : 10; 
-            }
-            this.scoreText.setText('SCORE: ' + this.score);
-            
-            this.sound.play('zombie_death', { volume: 0.4 });
-            zombie.destroy();
+            this.handleZombieDeath(zombie);
         }
+    }
+
+    handleZombieDeath(zombie) {
+        this.dropLoot(zombie.x, zombie.y); 
+        if (zombie.isBoss) {
+            this.dropWeaponFromBoss(zombie.x, zombie.y); 
+            this.score += 100;
+        } else {
+            this.score += zombie.zombieType === 2 ? 20 : 10; 
+        }
+        this.scoreText.setText('SCORE: ' + this.score);
+        this.sound.play('zombie_death', { volume: 0.4 });
+        zombie.destroy();
     }
 
     startShowdown(zombiePlayer) {
@@ -512,6 +648,7 @@ export default class GameScene extends Phaser.Scene {
         this.lootItems.clear(true, true);
         this.weaponDrops.clear(true, true);
         this.energyDrinks.clear(true, true);
+        this.batDrops.clear(true, true);
         this.spawnTimer.remove(); 
 
         this.waveText.setText('FINAL SHOWDOWN');
@@ -551,13 +688,14 @@ export default class GameScene extends Phaser.Scene {
         player.isZombie = true;
         player.maxHp = 300; 
         player.hp = player.maxHp; 
+        player.hasBat = false; 
         player.setTexture(player.id === 1 ? 'player1_z' : 'player2_z'); 
         player.setTint(0x00ff00); 
         player.setScale(0.65); 
         this.cameras.main.shake(300, 0.02);
         
-        if (player.id === 1) this.uiNameP1.setText('P1 (ZOMBIFIED)');
-        if (player.id === 2) this.uiNameP2.setText('P2 (ZOMBIFIED)');
+        if (player.id === 1 && this.uiNameP1) this.uiNameP1.setText('P1 (ZOMBIFIED)');
+        if (player.id === 2 && this.uiNameP2) this.uiNameP2.setText('P2 (ZOMBIFIED)');
 
         let deathSound = player.id === 1 ? 'p1_death' : 'p2_death';
         this.sound.play(deathSound, { volume: 0.9 });

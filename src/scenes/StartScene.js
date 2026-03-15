@@ -22,7 +22,13 @@ export default class StartScene extends Phaser.Scene {
         this.load.image('box', 'assets/box.png'); 
         this.load.image('medkit', 'assets/medkit.png'); 
         this.load.image('energy', 'assets/energy.png'); 
-        this.load.image('weapon_drop', 'assets/weapon_drop.png'); 
+        this.load.image('weapon_drop', 'assets/weapon_drop.png');
+        this.load.image('player1_gun_bat', 'assets/player1_gun_bat.png'); 
+        this.load.image('player1_machine_bat', 'assets/player1_machine_bat.png'); 
+        this.load.image('player1_silencer_bat', 'assets/player1_silencer_bat.png'); 
+        this.load.image('player2_gun_bat', 'assets/player2_gun_bat.png'); 
+        this.load.image('player2_machine_bat', 'assets/player2_machine_bat.png'); 
+        this.load.image('player2_silencer_bat', 'assets/player2_silencer_bat.png'); 
 
         this.load.audio('music_menu', 'assets/audio/music_menu.mp3');
         this.load.audio('music_game', 'assets/audio/music_game.mp3');
@@ -43,6 +49,7 @@ export default class StartScene extends Phaser.Scene {
         this.load.audio('boss_spawn', 'assets/audio/boss_spawn.mp3');
         this.load.audio('bite', 'assets/audio/bite.mp3');
         this.load.audio('showdown_start', 'assets/audio/showdown_start.mp3');
+        this.load.audio('swing', 'assets/audio/swing.mp3');
     }
 
     create() {
@@ -126,7 +133,7 @@ export default class StartScene extends Phaser.Scene {
 
         let dreamloUrl = `http://dreamlo.com/lb/${this.DREAMLO_PUBLIC_KEY}/pipe?t=${new Date().getTime()}`;
         let url = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(dreamloUrl)}`;
-        
+
         fetch(url, { cache: 'no-store' })
             .then(response => {
                 if (!response.ok) throw new Error("Network response was not ok");
