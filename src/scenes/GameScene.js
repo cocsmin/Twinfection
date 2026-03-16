@@ -141,12 +141,12 @@ export default class GameScene extends Phaser.Scene {
             player.setRotation(Phaser.Math.Angle.Between(0, 0, vx, vy));
         }
 
-        if (shootKey.isDown) {
+        if (shootKey.isDown || meleeKey.isDown) {
             if (player.isZombie) {
                 if (time > player.lastBite + player.biteCooldown) {
                     this.executeZombieBite(player, time);
                 }
-            } else {
+            } else if (shootKey.isDown) {
                 if (time > player.lastFired) {
                     this.shootBullet(player, bulletGroup);
                     player.lastFired = time + player.currentWeapon.fireRate; 

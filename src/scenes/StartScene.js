@@ -84,8 +84,8 @@ export default class StartScene extends Phaser.Scene {
         this.menuUI = this.add.container(0, 0);
 
         let title = this.add.text(cx, 150, 'TWINFECTION', { fontSize: '72px', fill: '#00ff00', fontStyle: 'bold', stroke: '#000000', strokeThickness: 8 }).setOrigin(0.5);
-        let btn1 = this.add.text(cx, 300, '> Press 1 for SINGLEPLAYER <', { fontSize: '28px', fill: '#ffffff' }).setOrigin(0.5);
-        let btn2 = this.add.text(cx, 360, '> Press 2 for CO-OP (Local) <', { fontSize: '28px', fill: '#ffffff' }).setOrigin(0.5);
+        let btn1 = this.add.text(cx, 300, '> Press [ 1 ] for SINGLEPLAYER <', { fontSize: '28px', fill: '#ffffff' }).setOrigin(0.5);
+        let btn2 = this.add.text(cx, 360, '> Press [ 2 ] for CO-OP (Local) <', { fontSize: '28px', fill: '#ffffff' }).setOrigin(0.5);
         
         let btnL = this.add.text(cx, 440, '> Press [ L ] to see the LEADERBOARD <', { fontSize: '24px', fill: '#ffff00' }).setOrigin(0.5);
 
