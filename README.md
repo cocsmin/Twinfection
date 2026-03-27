@@ -15,6 +15,7 @@
 | :--- | :--- | :--- |
 | **Move** | `W` `A` `S` `D` | `Arrow Keys` |
 | **Attack** | `F` | `SPACE` |
+| **Melee** | `E` | `ENTER` |
 
 *Global Controls:*
 * `P` - Pause/Resume Game
